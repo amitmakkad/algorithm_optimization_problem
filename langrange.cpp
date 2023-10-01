@@ -1,47 +1,9 @@
 #include <bits/stdc++.h>
 using namespace std;
+#include "minknap.c"
 
-// basically we have to use pisinger's MINKNAP for solving knapsack problem (hard to implement)
-// but we are using normal approach for knapsack problem
-int knapsack(vector<vector<int>>&c,vector<vector<int>>&x,vector<int>&fp,vector<int>&lamda,int j,vector<int>&sv,int cr){
-    
-    int s=c.size();
-    int n=s;
-    int W=cr;
-    
-    vector<vector<int>>K(n+1,vector<int>(W+1,0));
-    
-    // val=c[i][j]+lamda[i]
-    // wt=sv
-    
-    for(int i=0;i<=n;i++){
-        for(int w=0;w<=W;w++){
-            if(i==0||w==0)
-                K[i][w]=0;
-            else if(sv[i-1]<=w)
-                K[i][w]=max(c[i-1][j]+lamda[i-1]+K[i-1][w-sv[i-1]],K[i-1][w]);
-            else
-                K[i][w]=K[i-1][w];
-        }
-    }
-    
-    int w=W;
-    int res=K[n][W];
-    for (int i=n;i>0&&res>0;i--) {
-        if(res==K[i-1][w])
-            continue;       
-        else {
-            x[i-1][j]=1;
-            res = res - c[i-1][j]-lamda[i-1];
-            w = w - sv[i - 1];
-        }
-    }
-    
-    return K[n][W];
-}
 
 //DATASET GENERATION AS GIVEN IN RESEARCH PAPER
-
 void dataset(double &r, int &n,int &p,int &s,vector<double>&x_location_supplier,vector<double>&y_location_supplier,vector<double>&x_location_plant,
 vector<double>&y_location_plant,vector<vector<int>>&c,vector<int>&sv,int &cr,vector<int>&fp){
 
@@ -68,7 +30,7 @@ vector<double>&y_location_plant,vector<vector<int>>&c,vector<int>&sv,int &cr,vec
     // supply volume randomly and uniformly generated from the interval
     int total_supply_vol=0;
     for(int i=0;i<s;i++){
-        sv[i]=rand()%100;
+        sv[i]=rand()%100+1;
         total_supply_vol+=sv[i];
     }
 
@@ -82,6 +44,34 @@ vector<double>&y_location_plant,vector<vector<int>>&c,vector<int>&sv,int &cr,vec
         fp[i]=rand()%90+(100+rand()%10)*sqrt(cr);
     }
 
+}
+
+
+// we are using pisinger's MINKNAP for solving knapsack problem
+int knapsack(vector<vector<int>>&c,vector<vector<int>>&x,vector<int>&fp,vector<int>&lamda,int j,vector<int>&sv,int cr){
+    
+    int s=c.size();
+    
+    // pre routine
+    int mk_c=0, ans=0;
+    int mk_p[s], mk_w[s], mk_x[s];   // profit, weight, x(take or not_take)
+    for(int i=0;i<s;i++){
+        mk_p[i]=c[i][j]+lamda[i];
+        mk_w[i]=sv[i];
+        mk_c+=sv[i];
+        ans+=mk_p[i];
+    }
+    ans+=fp[j];
+    mk_c-=cr;
+
+    int val = minknap(s, mk_p, mk_w, mk_x, mk_c);
+
+    // post routine
+    ans-=val;
+    for(int i=0;i<s;i++){           //since our problem is to minimize knapsack, so xi=1-yi substitution
+        x[i][j]=1-mk_x[i];
+    }
+    return ans;
 }
 
 
@@ -163,6 +153,8 @@ void standard_subgradient_method(int &z_ub, int &n,int &p,int &s,vector<vector<i
         
         
         // calculating step size
+        if(g_norm2==0)
+            g_norm2=1;
         t[k]=(double)(z_ub-z_lb)/g_norm2;
         t[k]=t[k]*theta;
         
@@ -247,7 +239,6 @@ void subgradient_deflection_method(int &z_ub, int &n,int &p,int &s,vector<vector
         for(int i=0;i<s;i++){
             z_lb=z_lb-lamda[i];
         }
-
         
         // calculating subgradient 
         for(int i=0;i<s;i++){
@@ -273,6 +264,8 @@ void subgradient_deflection_method(int &z_ub, int &n,int &p,int &s,vector<vector
         
         
         // calculating step size
+        if(h_norm2==0)
+            h_norm2=1;
         t[k]=(double)(z_ub-z_lb)/h_norm2;
         t[k]=t[k]*theta;
         
@@ -317,14 +310,16 @@ void greedy_method(int &n,int &p,int &s,vector<vector<int>>&c,vector<vector<int>
             x[i][index_of_plant]=1;
         }
     }
+
     
     int weight_function[s][n];  // weight function of supplier i supplies to plant j
     
     for(int i=0;i<s;i++){
         for(int j=0;j<n;j++){
-            weight_function[i][j]=c[i][j]/sv[i];
+            weight_function[i][j]=c[i][j];
         }
     }
+    
     
     
     //desireability of plant(j)=
@@ -339,13 +334,13 @@ void greedy_method(int &n,int &p,int &s,vector<vector<int>>&c,vector<vector<int>
             first_mini=min(first_mini,weight_function[i][j]);
         }
         for(int i=0;i<s;i++){
-            if(second_mini<weight_function[i][j]&&second_mini!=first_mini){
-                second_mini=weight_function[i][j];
+            if(weight_function[i][j]!=first_mini){
+                second_mini=min(second_mini,weight_function[i][j]);
             }
         }
         
         desireability[j]=second_mini-first_mini;
-        
+
     }
     
     // we have serve suppliers by decreasing order of desireability
@@ -364,22 +359,25 @@ void greedy_method(int &n,int &p,int &s,vector<vector<int>>&c,vector<vector<int>
             }
             
         }
+        
         for(int j=0;j<n;j++){
             if(y[j]==1&&max_desireability==desireability[j]){
                 max_index=j;
                 desireability[j]=-1;    // not interfare in next iteration
+                break;
             }
         }
-        
+
         // we have to fullfill capacity reuirement cr
         // first subtract supply volume of intially assigned suppliers
+        int temp_cr=cr;
         for(int i=0;i<s;i++){
             if(x[i][max_index]==1){
-                cr=cr-sv[i];
+                temp_cr=temp_cr-sv[i];
             }
         }
         
-        while(cr>0){
+        while(temp_cr>0){
             // we have select supplier with min weight function
             
             int mini_weight=INT_MAX;
@@ -396,7 +394,7 @@ void greedy_method(int &n,int &p,int &s,vector<vector<int>>&c,vector<vector<int>
                 }
             }
             
-            cr=cr-sv[mini_index];
+            temp_cr=temp_cr-sv[mini_index];
             
             x[mini_index][max_index]=1;  // supplier assigned
             
@@ -417,9 +415,9 @@ int main()
     //p = no of plants to be located
     //s = number of suppliers
     double r=0.4;
-    int n=100;
-    int p=50;
-    int s=100;
+    int n=200;
+    int p=100;
+    int s=4000;
 
     
     // location of supplier and potential plants
@@ -482,7 +480,7 @@ int main()
     
     
     // 4. SUBGRADIENT DEFLECTION METHOD
-    // subgradient_deflection_method(z_ub,n,p,s,c,x,y,fp,lamda,sv,cr);
+    subgradient_deflection_method(z_ub,n,p,s,c,x,y,fp,lamda,sv,cr);
     
     
     // data we got till now:-
@@ -491,13 +489,29 @@ int main()
     // but we have to select enough suppliers from unassigned ones to satisfy residual capacity of all open plants
     
     // 5. GREEDY ALGORITHM for construction of feasible solution
-    // greedy_method(n,p,s,c,x,y,fp,lamda,sv,cr);
+    greedy_method(n,p,s,c,x,y,fp,lamda,sv,cr);
 
     time(&end);
     time_taken = double(end - start);
     cout << "Time taken by program is : " << fixed << time_taken << setprecision(5);
     cout << " sec " << endl;
     
+
+    // 6. FINAL SOLUTION
+    // cout<<"Plant opening index from Potential Sites"<<endl;
+    // for(int i=0;i<n;i++){
+    //     cout<<y[i]<<" ";
+    // }
+    // cout<<endl;
+
+
+    // cout<<"Supplier Locations"<<endl;
+    // for(int i=0;i<s;i++){
+    //     for(int j=0;j<n;j++){
+    //         cout<<x[i][j]<<" ";
+    //     }
+    //     cout<<endl;
+    // }
     
     // finally feasible solution obtained, however it can be improved also by using tabu search
     // but we are not implementing it here
