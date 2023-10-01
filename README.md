@@ -27,8 +27,11 @@ problem can be decomposed into a set of independent knapsack problems, which can
 improved by a simple tabu search algorithm.
 
 # Implementation 
-langrange.cpp contains implemntation of above code in C++. It can be run in latest version C++ compiler.
-# Results
+langrange.cpp contains implemntation of above code in C++. It can be run in latest version C++ compiler using the below command.
+```
+g++ langrange.cpp -fpermissive -Wwrite-strings -o lng -lm -Wregister && ./lng
+```
+The above takes 1.0 seconds for r=0.4 with n=200, p=100, |S|=4000 in intel i5 processor.
 
 # Contributer
 Amit Kumar Makkad
