@@ -31,7 +31,7 @@ langrange.cpp contains implemntation of above code in C++. It can be run in late
 ```
 g++ langrange.cpp -fpermissive -Wwrite-strings -o lng -lm -Wregister && ./lng
 ```
-The above takes 1.0 seconds for r=0.4 with n=200, p=100, |S|=4000 in intel i5 processor.
+The above takes 1.0 seconds for r=0.4 with n=200, p=100, |S|=4000 in Intel(R) Core(TM) i5-1035G1 CPU @ 1.00GHz.
 
 # Contributer
 Amit Kumar Makkad
